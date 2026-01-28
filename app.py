@@ -28,7 +28,7 @@ st.markdown(
        📸 Select Input Method
     </h2>
     <p style='text-align: left; font-size: 18px;'>
-        Choose how you want to provide the cat image
+         upload or capture a cat image. The system will detect the cat and predict its breed
     </p>
     """,
     unsafe_allow_html=True
