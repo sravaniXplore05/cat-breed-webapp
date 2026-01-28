@@ -24,7 +24,7 @@ st.divider()
 # ---------------- INPUT METHOD INFO ----------------
 st.markdown(
     """
-    <h2 style='text-align: center; color: #555;'>
+    <h2 style='text-align: center;'>
         Select Input Method
     </h2>
     <p style='text-align: center; font-size: 18px;'>
