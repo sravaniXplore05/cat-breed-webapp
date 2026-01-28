@@ -21,6 +21,21 @@ st.markdown(
 
 st.divider()
 
+# ---------------- INPUT METHOD INFO ----------------
+st.markdown(
+    """
+    <h2 style='text-align: center; color: #555;'>
+        Select Input Method
+    </h2>
+    <p style='text-align: center; font-size: 18px;'>
+        Choose how you want to provide the cat image
+    </p>
+    """,
+    unsafe_allow_html=True
+)
+
+st.divider()
+
 # ---------------- IMAGE INPUT ----------------
 option = st.radio(
     "",
@@ -31,13 +46,17 @@ option = st.radio(
 image = None
 
 if option == "📂 Upload Image":
-    uploaded = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    uploaded = st.file_uploader(
+        "Upload Image",
+        type=["jpg", "jpeg", "png"]
+    )
     if uploaded:
-        image = Image.open(uploaded)
+        image = Image.open(uploaded).convert("RGB")
+
 else:
     cam = st.camera_input("Capture Image")
     if cam:
-        image = Image.open(cam)
+        image = Image.open(cam).convert("RGB")
 
 # ---------------- PROCESS ----------------
 if image is not None:
@@ -51,9 +70,6 @@ if image is not None:
         is_grayscale = True
         img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
 
-    elif img_np.shape[2] == 4:
-        img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
-
     img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
     # ---------------- YOLO ----------------
@@ -61,7 +77,10 @@ if image is not None:
 
     # ❗ FALLBACK FOR GRAYSCALE
     if len(boxes) == 0 and is_grayscale:
-        st.warning("⚠️ Grayscale image detected. YOLO failed. Using full image for prediction.")
+        st.warning(
+            "⚠️ Grayscale image detected. "
+            "YOLO failed. Using full image for prediction."
+        )
 
         result = predict_breed(img_np)
 
@@ -76,7 +95,7 @@ if image is not None:
 
         st.stop()
 
-    # ❌ No cat detected (normal RGB failure)
+    # ❌ No cat detected
     if len(boxes) == 0:
         st.error("❌ No cat detected. Please upload a clear color image.")
         st.stop()
