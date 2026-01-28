@@ -1,55 +1,47 @@
 import numpy as np
 import json
 from PIL import Image
-import tflite_runtime.interpreter as tflite
-import streamlit as st
-import os
+import tensorflow as tf
 
-# ---------------- LOAD MODEL (CACHED) ----------------
-@st.cache_resource(show_spinner="Loading breed classifier...")
-def load_tflite():
-    model_path = os.path.join("models", "cat_breed_model_v3.tflite")
-    interpreter = tflite.Interpreter(model_path=model_path)
-    interpreter.allocate_tensors()
-    return interpreter
-
-interpreter = load_tflite()
+# ---------------- LOAD MODEL ----------------
+interpreter = tf.lite.Interpreter(model_path="models/cat_breed_model_v3.tflite")
+interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
 # ---------------- LOAD CLASS NAMES ----------------
-@st.cache_resource
-def load_class_names():
-    class_path = os.path.join("models", "class_indices.json")
-    with open(class_path, "r") as f:
-        class_indices = json.load(f)
-    return {v: k for k, v in class_indices.items()}
-
-class_names = load_class_names()
+with open("models/class_indices.json", "r") as f:
+    class_indices = json.load(f)
+    class_names = {v: k for k, v in class_indices.items()}
 
 # ---------------- IMAGE PREPROCESS ----------------
 def preprocess_image(img):
     if not isinstance(img, Image.Image):
         img = Image.fromarray(img)
 
+    # ✅ Ensure RGB (handles grayscale automatically)
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
     img = img.resize((256, 256))
     img = np.array(img).astype("float32") / 255.0
     img = np.expand_dims(img, axis=0)
+
     return img
 
 # ---------------- BREED PREDICTION ----------------
 def predict_breed(img):
     img = preprocess_image(img)
 
-    interpreter.set_tensor(input_details[0]["index"], img)
+    interpreter.set_tensor(input_details[0]['index'], img)
     interpreter.invoke()
 
-    probs = interpreter.get_tensor(output_details[0]["index"])[0]
+    probs = interpreter.get_tensor(output_details[0]['index'])[0]
 
     max_prob = float(np.max(probs))
     predicted_index = int(np.argmax(probs))
-    nearest_breed = class_names.get(predicted_index, "Unknown")
+    nearest_breed = class_names[predicted_index]
 
     # 🔴 UNKNOWN BREED
     if max_prob < 0.25:

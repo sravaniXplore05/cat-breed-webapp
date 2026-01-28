@@ -1,8 +1,6 @@
 streamlit
+opencv-python
 numpy
 Pillow
-opencv-python-headless
+tensorflow
 ultralytics
-torch
-torchvision
-tflite-runtime
