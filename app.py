@@ -1,10 +1,16 @@
 import streamlit as st
-import cv2
+import cv2                       # ✅ FIXED
 import numpy as np
 from PIL import Image
 
-from utils.yolo_utils import detect_cats
-from utils.tflite_utils import predict_breed
+# Safe imports
+try:
+    from utils.yolo_utils import detect_cats
+    from utils.tflite_utils import predict_breed
+except Exception as e:
+    st.error("❌ Failed to load model utilities.")
+    st.code(str(e))
+    st.stop()
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -47,12 +53,11 @@ if option == "📂 Upload Image":
         type=["jpg", "png", "jpeg"]
     )
     if uploaded:
-        image = Image.open(uploaded)
-
+        image = Image.open(uploaded).convert("RGB")
 else:
     cam = st.camera_input("Capture a clear cat image")
     if cam:
-        image = Image.open(cam)
+        image = Image.open(cam).convert("RGB")
 
 # ---------------- IMAGE PROCESSING ----------------
 if image is not None:
@@ -71,7 +76,7 @@ if image is not None:
 
     boxes = detect_cats(img_cv)
 
-    if len(boxes) == 0:
+    if not boxes:
         st.error("❌ No cat detected. Please upload a clear image.")
         st.stop()
 
@@ -104,12 +109,9 @@ if image is not None:
             unsafe_allow_html=True
         )
 
-        # 🔴 UNKNOWN
         if result["status"] == "unknown":
             st.warning("⚠️ This breed is not present in our training dataset")
             st.info(f"🔍 Closest matching breed: **{result['closest_breed']}**")
-
-        # 🟢 KNOWN
         else:
             st.success(f"🐱 **Breed:** {result['breed']}")
             st.info(f"📊 **Confidence Level:** {result['level']}")

@@ -39,7 +39,7 @@ def predict_breed(img):
     nearest_breed = class_names[predicted_index]
 
     # 🔴 UNKNOWN BREED CASE
-    if max_prob < 0.55:
+    if max_prob < 0.25:
         return {
             "status": "unknown",
             "closest_breed": nearest_breed
