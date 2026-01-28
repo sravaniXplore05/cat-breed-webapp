@@ -24,10 +24,10 @@ st.divider()
 # ---------------- INPUT METHOD INFO ----------------
 st.markdown(
     """
-    <h2 style='text-align: center;'>
-        Select Input Method
+    <h2 style='text-align: left;'>
+       📸 Select Input Method
     </h2>
-    <p style='text-align: center; font-size: 18px;'>
+    <p style='text-align: left; font-size: 18px;'>
         Choose how you want to provide the cat image
     </p>
     """,
