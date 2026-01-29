@@ -6,7 +6,6 @@ from PIL import Image
 from utils.yolo_utils import detect_cats
 from utils.tflite_utils import predict_breed
 
-
 # ---------- IOU FUNCTION ----------
 def calculate_iou(boxA, boxB):
     xA = max(boxA[0], boxB[0])
@@ -23,7 +22,6 @@ def calculate_iou(boxA, boxB):
 
     return interArea / (boxAArea + boxBArea - interArea + 1e-6)
 
-
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Cat Breed Prediction",
@@ -32,38 +30,41 @@ st.set_page_config(
 )
 
 # ---------------- CUSTOM CSS ----------------
-st.markdown("""
-<style>
-.main-title {
-    text-align: center;
-    font-size: 32px;
-    font-weight: bold;
-}
-.section-card {
-    background-color: #f9f9f9;
-    padding: 16px;
-    border-radius: 14px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-     color: #333;       
-}
-.section-title {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #333;
-}
-</style>
-""", unsafe_allow_html=True)
-
+st.markdown(
+    """
+    <style>
+    .main-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+    }
+    .section-card {
+        background-color: #f9f9f9;
+        padding: 16px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        color: #333;
+    }
+    .section-title {
+        font-size: 22px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 # ---------------- TITLE ----------------
 st.markdown("<div class='main-title'>🐱 Cat Breed Prediction App</div>", unsafe_allow_html=True)
+st.write("")
 
 # ---------------- INPUT METHOD ----------------
 st.markdown("""
 <div class="section-card">
     <div class="section-title">📸 Select Input Method</div>
-    Upload or capture a cat image. Supports multiple cats.
+    Upload an image or use the camera to capture a cat. Supports multiple cats in one image.
 </div>
 """, unsafe_allow_html=True)
 
@@ -80,7 +81,6 @@ else:
     cam = st.camera_input("Capture a cat image")
     if cam:
         image = Image.open(cam)
-
 
 # ---------------- PROCESS ----------------
 if image is not None:
@@ -99,12 +99,9 @@ if image is not None:
     # ---------------- GRAYSCALE FLOW ----------------
     if is_grayscale:
         st.warning("⚠️ Grayscale image detected. Converted to RGB automatically.")
-
         if st.button("🔮 Predict Cat Breed", use_container_width=True):
             result = predict_breed(img_np)
-
             st.markdown("<div class='section-card'><div class='section-title'>🐾 Prediction Result</div></div>", unsafe_allow_html=True)
-
             if result["status"] == "unknown":
                 st.warning("Breed not in training dataset")
                 st.info(f"Closest match: {result['closest_breed']}")
@@ -116,31 +113,33 @@ if image is not None:
     # ---------------- YOLO DETECTION ----------------
     raw_boxes = detect_cats(img_cv)
 
-    # Sort by area (small → large)
-    raw_boxes = sorted(raw_boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
+    # Sort boxes by area (small → large)
+    raw_boxes = sorted(raw_boxes, key=lambda b: (b[2]-b[0])*(b[3]-b[1]))
 
-    # --------- IoU Filtering (RELAXED) ----------
+    # --------- IoU Filtering ----------
     filtered_boxes = []
     for box in raw_boxes:
         keep = True
         for kept in filtered_boxes:
-            if calculate_iou(box, kept) > 0.65:
+            if calculate_iou(box, kept) > 0.6:  # slightly relaxed
                 keep = False
                 break
         if keep:
             filtered_boxes.append(box)
 
-    # --------- Remove merged mega boxes ----------
+    # --------- Allow both small and large boxes ----------
     h, w, _ = img_cv.shape
     image_area = h * w
-
     boxes = []
+    min_area_ratio = 0.005  # very small faces allowed
+    max_area_ratio = 0.85   # avoid huge boxes that cover most of the image
+
     for box in filtered_boxes:
-        box_area = (box[2] - box[0]) * (box[3] - box[1])
-        if box_area / image_area < 0.65:
+        box_area = (box[2]-box[0])*(box[3]-box[1])
+        if min_area_ratio < box_area/image_area < max_area_ratio:
             boxes.append(box)
 
-    st.info(f"🐈 Clean cats detected: {len(boxes)}")
+    st.info(f"🐈 Total cats detected: {len(boxes)}")
 
     if len(boxes) == 0:
         st.error("❌ No cat detected. Please upload a clear image.")
@@ -152,34 +151,21 @@ if image is not None:
     labels = []
 
     for i, (x1, y1, x2, y2) in enumerate(boxes):
-
-        # ---- Clamp to image bounds ----
-        x1 = max(0, x1)
-        y1 = max(0, y1)
-        x2 = min(w, x2)
-        y2 = min(h, y2)
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
 
         cv2.rectangle(boxed_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(
-            boxed_img,
-            f"Cat {i+1}",
-            (x1, max(20, y1 - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2
-        )
+        cv2.putText(boxed_img, f"Cat {i+1}", (x1, max(20, y1-10)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
 
         crop = img_cv[y1:y2, x1:x2]
         crops.append(crop)
         labels.append(f"Cat {i+1}")
 
     st.markdown("<div class='section-card'><div class='section-title'>😻 Detected Cats</div></div>", unsafe_allow_html=True)
-    st.image(cv2.cvtColor(boxed_img, cv2.COLOR_BGR2RGB), use_container_width=True)
+    st.image(cv2.cvtColor(boxed_img, cv2.COLOR_BGR2RGB), caption="Detected cats (select one below)", use_container_width=True)
 
     # ---------------- SELECT CAT ----------------
     selected_cat = st.radio("Select the cat to predict", labels, horizontal=True)
-
     selected_index = labels.index(selected_cat)
     selected_crop = crops[selected_index]
 
@@ -190,12 +176,10 @@ if image is not None:
     # ---------------- PREDICT ----------------
     if st.button("🔮 Predict Cat Breed", use_container_width=True):
         result = predict_breed(selected_crop)
-
         st.markdown("<div class='section-card'><div class='section-title'>🐾 Prediction Result</div></div>", unsafe_allow_html=True)
-
         if result["status"] == "unknown":
-            st.warning("⚠️Breed not in training dataset")
-            st.info(f"😺Closest match: {result['closest_breed']}")
+            st.warning("⚠️ Breed not in training dataset")
+            st.info(f"😺 Closest match: {result['closest_breed']}")
         else:
-            st.success(f"😸Breed: {result['breed']}")
-            st.info(f"📊Confidence: {result['level']}")
+            st.success(f"😸 Breed: {result['breed']}")
+            st.info(f"📊 Confidence: {result['level']}")
