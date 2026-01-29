@@ -30,32 +30,35 @@ st.set_page_config(
 )
 
 # ---------------- CUSTOM CSS ----------------
-st.markdown(
-    """
-    <style>
-    .main-title {
-        text-align: center;
-        font-size: 32px;
-        font-weight: bold;
-    }
-    .section-card {
-        background-color: #f9f9f9;
-        padding: 16px;
-        border-radius: 14px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-        color: #333;
-    }
-    .section-title {
-        font-size: 22px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #333;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+.main-title {
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+}
+.section-card {
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 16px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    color:#333;
+}
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #34495e;
+}
+.stButton button {
+    width: 100%;
+    padding: 10px;
+    font-size: 18px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---------------- TITLE ----------------
 st.markdown("<div class='main-title'>🐱 Cat Breed Prediction App</div>", unsafe_allow_html=True)
 st.write("")
@@ -113,30 +116,23 @@ if image is not None:
     # ---------------- YOLO DETECTION ----------------
     raw_boxes = detect_cats(img_cv)
 
-    # Sort boxes by area (small → large)
-    raw_boxes = sorted(raw_boxes, key=lambda b: (b[2]-b[0])*(b[3]-b[1]))
-
-    # --------- IoU Filtering ----------
+    # --------- IoU Filtering (keep all valid boxes) ----------
     filtered_boxes = []
     for box in raw_boxes:
         keep = True
         for kept in filtered_boxes:
-            if calculate_iou(box, kept) > 0.6:  # slightly relaxed
+            if calculate_iou(box, kept) > 0.7:  # relaxed, allows small overlapping faces
                 keep = False
                 break
         if keep:
             filtered_boxes.append(box)
 
-    # --------- Allow both small and large boxes ----------
+    # --------- Allow all reasonable boxes ----------
     h, w, _ = img_cv.shape
-    image_area = h * w
     boxes = []
-    min_area_ratio = 0.005  # very small faces allowed
-    max_area_ratio = 0.85   # avoid huge boxes that cover most of the image
-
     for box in filtered_boxes:
-        box_area = (box[2]-box[0])*(box[3]-box[1])
-        if min_area_ratio < box_area/image_area < max_area_ratio:
+        box_area = (box[2]-box[0]) * (box[3]-box[1])
+        if box_area > 50:  # allow tiny faces even 50 pixels area
             boxes.append(box)
 
     st.info(f"🐈 Total cats detected: {len(boxes)}")
