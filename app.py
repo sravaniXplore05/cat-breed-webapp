@@ -21,14 +21,11 @@ st.markdown(
 
 st.divider()
 
-# ---------------- INPUT METHOD INFO ----------------
 st.markdown(
     """
-    <h2 style='text-align: left;'>
-       📸 Select Input Method
-    </h2>
-    <p style='text-align: left; font-size: 18px;'>
-         upload or capture a cat image. The system will detect the cat and predict its breed
+    <h2 style='text-align: center;'>📸 Select Input Method</h2>
+    <p style='text-align: center; font-size:18px;'>
+        Upload or capture a cat image. The system will detect the cat and predict its breed.
     </p>
     """,
     unsafe_allow_html=True
@@ -36,50 +33,53 @@ st.markdown(
 
 st.divider()
 
-# ---------------- IMAGE INPUT ----------------
-option = st.radio(
-    "",
-    ["📂 Upload Image", "📷 Use Camera"],
-    horizontal=True
-)
+# ---------------- LARGE BUTTON INPUT ----------------
+col1, col2 = st.columns(2)
 
 image = None
+is_grayscale = False
 
-if option == "📂 Upload Image":
+with col1:
+    upload_clicked = st.button("📂 Upload Image", use_container_width=True)
+
+with col2:
+    camera_clicked = st.button("📷 Use Camera", use_container_width=True)
+
+# ---------------- HANDLE UPLOAD ----------------
+if upload_clicked:
     uploaded = st.file_uploader(
-        "Upload Image",
+        "Choose an image",
         type=["jpg", "jpeg", "png"]
     )
     if uploaded:
-        image = Image.open(uploaded).convert("RGB")
+        image = Image.open(uploaded)
 
-else:
-    cam = st.camera_input("Capture Image")
+# ---------------- HANDLE CAMERA ----------------
+if camera_clicked:
+    cam = st.camera_input("Capture a photo")
     if cam:
-        image = Image.open(cam).convert("RGB")
+        image = Image.open(cam)
 
 # ---------------- PROCESS ----------------
 if image is not None:
+
+    # ✅ Detect grayscale BEFORE conversion
+    if image.mode == "L":
+        is_grayscale = True
+
+    # Convert to RGB
+    image = image.convert("RGB")
+
     st.image(image, caption="Input Image", use_container_width=True)
 
     img_np = np.array(image)
-    is_grayscale = False
-
-    # Detect grayscale
-    if len(img_np.shape) == 2:
-        is_grayscale = True
-        img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
-
     img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    # ---------------- YOLO ----------------
-    boxes = detect_cats(img_cv)
-
-    # ❗ FALLBACK FOR GRAYSCALE
-    if len(boxes) == 0 and is_grayscale:
+    # ---------------- GRAYSCALE FLOW ----------------
+    if is_grayscale:
         st.warning(
             "⚠️ Grayscale image detected. "
-            "YOLO failed. Using full image for prediction."
+            "Converted to RGB and directly predicting breed."
         )
 
         result = predict_breed(img_np)
@@ -95,12 +95,14 @@ if image is not None:
 
         st.stop()
 
-    # ❌ No cat detected
+    # ---------------- COLOR IMAGE → YOLO ----------------
+    boxes = detect_cats(img_cv)
+
     if len(boxes) == 0:
         st.error("❌ No cat detected. Please upload a clear color image.")
         st.stop()
 
-    # ---------------- CROP ----------------
+    # ---------------- CROP CAT ----------------
     x1, y1, x2, y2 = boxes[0]
     cat_crop = img_cv[y1:y2, x1:x2]
 
@@ -111,14 +113,14 @@ if image is not None:
     )
 
     # ---------------- PREDICT ----------------
-    if st.button("🔮 Predict Cat Breed"):
+    if st.button("🔮 Predict Cat Breed", use_container_width=True):
         result = predict_breed(cat_crop)
 
         st.subheader("🐾 Prediction Result")
 
         if result["status"] == "unknown":
-            st.warning("Breed not in training dataset")
-            st.info(f"Closest match: {result['closest_breed']}")
+            st.warning("⚠️ Breed not in training dataset")
+            st.info(f"🐱 Closest match: {result['closest_breed']}")
         else:
-            st.success(f"Breed: {result['breed']}")
-            st.info(f"Confidence: {result['level']}")
+            st.success(f"🐱 Breed: {result['breed']}")
+            st.info(f"📊 Confidence: {result['level']}")
